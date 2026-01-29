@@ -1,4 +1,4 @@
-# ZEN GAUGE
+# ZEN GAUGE (Stress Indicator)
 
 Stress-to-action app with a **frontend** (React + Vite) and **backend** (Node + Express).
 
@@ -30,3 +30,7 @@ cd ../backend && npm install
 ```
 
 Then from the project root: `npm run dev` (frontend) and optionally `npm run dev:backend` (backend).
+
+## API key (Gemini)
+
+Copy `frontend/.env.example` to `frontend/.env` and set `GEMINI_API_KEY` or `VITE_GEMINI_API_KEY` (get a key at [Google AI Studio](https://aistudio.google.com/apikey)).
