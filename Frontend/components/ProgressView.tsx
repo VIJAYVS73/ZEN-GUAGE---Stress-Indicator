@@ -21,9 +21,10 @@ interface Props {
   history: AssessmentHistoryItem[];
   onBack: () => void;
   onClear: () => void;
+  onDeleteSession: (id: string) => void;
 }
 
-const ProgressView: React.FC<Props> = ({ history, onBack, onClear }) => {
+const ProgressView: React.FC<Props> = ({ history, onBack, onClear, onDeleteSession }) => {
   if (history.length === 0) {
     return (
       <div className="max-w-xl mx-auto py-20 px-4 text-center space-y-6">
@@ -44,7 +45,20 @@ const ProgressView: React.FC<Props> = ({ history, onBack, onClear }) => {
     );
   }
 
-  const chartData = history.map(item => ({
+  const normalizedHistory = [...history]
+    .map(item => ({
+      ...item,
+      stressLevel: Number.isFinite(item.stressLevel) ? item.stressLevel : 0,
+      results: {
+        reactionTime: Number.isFinite(item.results.reactionTime) ? item.results.reactionTime : 0,
+        accuracy: Number.isFinite(item.results.accuracy) ? item.results.accuracy : 0,
+        memoryScore: Number.isFinite(item.results.memoryScore) ? item.results.memoryScore : 0,
+        tappingSpeed: Number.isFinite(item.results.tappingSpeed) ? item.results.tappingSpeed : 0
+      }
+    }))
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  const chartData = normalizedHistory.map(item => ({
     time: new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }),
     fullTime: new Date(item.timestamp).toLocaleString(),
     stress: item.stressLevel,
@@ -52,7 +66,9 @@ const ProgressView: React.FC<Props> = ({ history, onBack, onClear }) => {
     accuracy: item.results.accuracy,
     memory: item.results.memoryScore,
     tapping: item.results.tappingSpeed
-  })).reverse();
+  }));
+
+  const tableHistory = [...normalizedHistory].reverse();
 
   return (
     <div className="max-w-5xl mx-auto py-8 px-4 space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -180,10 +196,11 @@ const ProgressView: React.FC<Props> = ({ history, onBack, onClear }) => {
                 <th className="px-6 py-4">Accuracy</th>
                 <th className="px-6 py-4">Memory</th>
                 <th className="px-6 py-4">Tapping</th>
+                <th className="px-6 py-4 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {history.map((item) => (
+              {tableHistory.map((item) => (
                 <tr key={item.id} className="text-sm text-slate-600 hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap font-medium text-slate-900">{new Date(item.timestamp).toLocaleString()}</td>
                   <td className="px-6 py-4">
@@ -195,10 +212,20 @@ const ProgressView: React.FC<Props> = ({ history, onBack, onClear }) => {
                       {item.stressLevel}
                     </span>
                   </td>
-                  <td className="px-6 py-4 font-mono">{item.results.reactionTime}ms</td>
-                  <td className="px-6 py-4">{item.results.accuracy}%</td>
-                  <td className="px-6 py-4">{item.results.memoryScore}%</td>
-                  <td className="px-6 py-4">{item.results.tappingSpeed} tps</td>
+                  <td className="px-6 py-4 font-mono">{item.results.reactionTime ? `${item.results.reactionTime}ms` : '—'}</td>
+                  <td className="px-6 py-4">{item.results.accuracy ? `${item.results.accuracy}%` : '—'}</td>
+                  <td className="px-6 py-4">{item.results.memoryScore ? `${item.results.memoryScore}%` : '—'}</td>
+                  <td className="px-6 py-4">{item.results.tappingSpeed ? `${item.results.tappingSpeed} tps` : '—'}</td>
+                  <td className="px-6 py-4 text-right">
+                    <button
+                      onClick={() => {
+                        if (confirm('Delete this session?')) onDeleteSession(item.id);
+                      }}
+                      className="inline-flex items-center gap-2 text-[10px] font-bold text-red-500 uppercase tracking-widest hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -117,12 +117,39 @@ class StressLSTM {
         const xs = tf.tensor3d(X); // [Batch, 3, 4]
         const ys = tf.tensor2d(Y, [Y.length, 1]);
 
-        console.log(`ML: Training LSTM on ${X.length} sequences...`);
-        await this.model.fit(xs, ys, {
+        console.log(`\n${'='.repeat(60)}`);
+        console.log('🧠 LSTM MODEL TRAINING STARTED');
+        console.log(`${'='.repeat(60)}`);
+        console.log(`📊 Training Sequences: ${X.length}`);
+        console.log(`📈 Window Size: ${WINDOW_SIZE}`);
+        console.log(`🎯 Features: [Reaction, Memory, Tapping, Accuracy]`);
+        console.log(`${'='.repeat(60)}\n`);
+
+        const history = await this.model.fit(xs, ys, {
             epochs: 30,
             batchSize: 4,
-            shuffle: true // Shuffle windows, not internal sequence
+            shuffle: true,
+            callbacks: {
+                onEpochEnd: (epoch, logs) => {
+                    if (epoch % 5 === 0 || epoch === 29) {
+                        const loss = logs?.loss?.toFixed(6) || 'N/A';
+                        const bar = '█'.repeat(Math.floor((epoch + 1) / 3)) + '░'.repeat(10 - Math.floor((epoch + 1) / 3));
+                        console.log(`Epoch ${(epoch + 1).toString().padStart(2, '0')}/30 [${bar}] Loss: ${loss}`);
+                    }
+                }
+            }
         });
+
+        const finalLoss = history.history.loss[history.history.loss.length - 1] as number;
+        const accuracy = Math.max(0, Math.min(100, (1 - finalLoss) * 100));
+
+        console.log(`\n${'='.repeat(60)}`);
+        console.log('✅ LSTM TRAINING COMPLETE');
+        console.log(`${'='.repeat(60)}`);
+        console.log(`📉 Final Loss: ${finalLoss.toFixed(6)}`);
+        console.log(`🎯 Model Accuracy: ${accuracy.toFixed(2)}%`);
+        console.log(`💾 Model saved to localStorage`);
+        console.log(`${'='.repeat(60)}\n`);
 
         this.isTrained = true;
         await this.model.save('localstorage://' + STRESS_MODEL_KEY);

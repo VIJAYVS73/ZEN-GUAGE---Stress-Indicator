@@ -3,71 +3,105 @@ import * as Gemini from './geminiService';
 import * as Ollama from './ollamaService';
 import { AssessmentHistoryItem, GameResult, Message, StressAnalysis } from '../types';
 
-export const getProvider = () => {
-    return localStorage.getItem('zengauge_ai_provider') === 'ollama' ? Ollama : Gemini;
+// Check if Ollama is available by default, fallback to local Gemini
+const isOllamaAvailable = async (): Promise<boolean> => {
+    try {
+        const response = await fetch('http://localhost:11434/api/tags');
+        return response.ok;
+    } catch {
+        return false;
+    }
+};
+
+let useOllama = localStorage.getItem('zengauge_ai_provider') === 'ollama';
+
+export const getProvider = async () => {
+    // Check if user has explicitly set provider
+    const provider = localStorage.getItem('zengauge_ai_provider');
+    if (provider === 'ollama') {
+        return Ollama;
+    } else if (provider === 'gemini') {
+        return Gemini;
+    }
+    
+    // Auto-detect: prefer Ollama if available
+    const ollamaRunning = await isOllamaAvailable();
+    if (ollamaRunning) {
+        localStorage.setItem('zengauge_ai_provider', 'ollama');
+        return Ollama;
+    }
+    
+    // Fallback to local Gemini service
+    return Gemini;
+};
+
+export const setProvider = (provider: 'ollama' | 'gemini') => {
+    localStorage.setItem('zengauge_ai_provider', provider);
 };
 
 export const analyzeStress = async (results: GameResult, coords?: { latitude: number, longitude: number }): Promise<StressAnalysis> => {
-    return await getProvider().analyzeStress(results, coords);
+    const provider = await getProvider();
+    return await provider.analyzeStress(results, coords);
 };
 
 export const getMindsetReport = async (history: AssessmentHistoryItem[]): Promise<string> => {
-    return await getProvider().getMindsetReport(history);
+    const provider = await getProvider();
+    return await provider.getMindsetReport(history);
 };
 
 export const chatWithAI = async (messages: Message[]): Promise<Message> => {
-    return await getProvider().chatWithAI(messages);
+    const provider = await getProvider();
+    
+    try {
+        // Try the provider with a timeout
+        const result = await Promise.race([
+            provider.chatWithAI(messages),
+            new Promise<never>((_, reject) => 
+                setTimeout(() => reject(new Error('Provider timeout')), 12000)
+            )
+        ]);
+        return result;
+    } catch (error) {
+        const errorMsg = (error as Error).message;
+        console.warn('Primary provider failed, trying fallback:', errorMsg);
+        
+        // If Ollama times out or fails, fall back to instant Gemini
+        if (provider === Ollama) {
+            console.log('🔄 Ollama slow/unavailable, using instant Gemini fallback');
+            try {
+                return await Gemini.chatWithAI(messages);
+            } catch (fallbackError) {
+                // If even Gemini fails, return a helpful message
+                return {
+                    role: 'model',
+                    content: "I'm having trouble processing your message. Please try again with a shorter question.",
+                    timestamp: new Date()
+                };
+            }
+        }
+        
+        // For Gemini provider failures, just return error message
+        return {
+            role: 'model',
+            content: "I'm temporarily unavailable. Please try again in a moment.",
+            timestamp: new Date()
+        };
+    }
 };
 
 export const getDailyAffirmation = async (context?: { stressLevel?: number, accuracy?: number }): Promise<string> => {
-    return await getProvider().getDailyAffirmation(context);
+    const provider = await getProvider();
+    return await provider.getDailyAffirmation(context);
 };
 
 export const findRelaxationVideos = async (queryType?: string): Promise<{ title: string, uri: string }[]> => {
-    return await getProvider().findRelaxationVideos(queryType);
-};
-
-// Fallback to AI provider or generic link if OSM fails
-const getFallbackSupport = (coords: { latitude: number, longitude: number }) => {
-    return [
-        {
-            title: "Open Google Maps Search",
-            uri: `https://www.google.com/maps/search/psychiatrist/@${coords.latitude},${coords.longitude},13z`
-        },
-        {
-            title: "Find A Helpline",
-            uri: "https://findahelpline.com/"
-        }
-    ];
+    const provider = await getProvider();
+    return await provider.findRelaxationVideos(queryType);
 };
 
 export const findNearbySupport = async (coords: { latitude: number, longitude: number }): Promise<{ title: string, uri: string }[]> => {
-    try {
-        // Try OpenStreetMap (Nominatim) first for direct listing
-        const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=psychiatrist+mental+health&limit=10&lat=${coords.latitude}&lon=${coords.longitude}&bounded=1`,
-            { headers: { 'Accept-Language': 'en-US' } }
-        );
-
-        if (!response.ok) throw new Error('OSM Lookup failed');
-
-        const data = await response.json();
-
-        if (Array.isArray(data) && data.length > 0) {
-            return data.map((place: any) => ({
-                title: place.name || place.display_name.split(',')[0], // Try to get a clean name
-                uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.display_name)}&query_place_id=${place.place_id}`
-                // Or just use OSM link: `https://www.openstreetmap.org/node/${place.osm_id}`
-                // But Google Maps is often more useful for directions.
-            }));
-        }
-
-        // If no results from OSM, fall back to provider or generic
-        return getFallbackSupport(coords);
-    } catch (e) {
-        console.warn("Location fetch failed, falling back", e);
-        return getFallbackSupport(coords);
-    }
+    const provider = await getProvider();
+    return await provider.findNearbySupport(coords);
 };
 
 const FALLBACK_SCENES: Record<string, string> = {

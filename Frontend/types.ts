@@ -39,6 +39,8 @@ export interface UserProfile {
   totalAssessments: number;
 }
 
+export type GameDifficulty = 'easy' | 'medium' | 'hard';
+
 export enum AppState {
   WELCOME = 'WELCOME',
   GAME_REACTION = 'GAME_REACTION',
@@ -54,6 +56,7 @@ export enum AppView {
   HISTORY = 'HISTORY',
   CHAT = 'CHAT',
   BREATHE = 'BREATHE',
+  PERSONALITY = 'PERSONALITY',
   ZEN_GARDEN = 'ZEN_GARDEN',
   LOCATOR = 'LOCATOR',
   RELAX_VIDEOS = 'RELAX_VIDEOS',

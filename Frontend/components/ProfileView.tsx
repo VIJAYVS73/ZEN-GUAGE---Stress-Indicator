@@ -2,10 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile, AssessmentHistoryItem } from '../types';
 import { getMindsetReport } from '../services/aiService';
-import { trainModelNow } from '../services/mlService';
 import {
   User,
-  Settings,
   Trophy,
   Flame,
   Target,
@@ -13,7 +11,6 @@ import {
   Edit3,
   Check,
   Shield,
-  LogOut,
   Calendar,
   Sparkles,
   BrainCircuit,
@@ -32,8 +29,7 @@ const ProfileView: React.FC<Props> = ({ profile, history, archetype, onUpdateNam
   const [tempName, setTempName] = useState(profile.displayName || '');
   const [aiReport, setAiReport] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isTraining, setIsTraining] = useState(false);
-  const [trainMessage, setTrainMessage] = useState<string | null>(null);
+  
 
   const handleSaveName = () => {
     onUpdateName(tempName);
@@ -45,18 +41,6 @@ const ProfileView: React.FC<Props> = ({ profile, history, archetype, onUpdateNam
     const report = await getMindsetReport(history);
     setAiReport(report);
     setIsGenerating(false);
-  };
-
-  const handleTrainModel = async () => {
-    setIsTraining(true);
-    setTrainMessage(null);
-    try {
-      const result = await trainModelNow();
-      setTrainMessage(`${result.message} (${result.dataPoints} data points)`);
-    } catch (e) {
-      setTrainMessage('Training failed. Check console.');
-    }
-    setIsTraining(false);
   };
 
   const avgStress = history.length > 0
@@ -212,54 +196,6 @@ const ProfileView: React.FC<Props> = ({ profile, history, archetype, onUpdateNam
           </div>
         </div>
 
-        <div className="bg-slate-900 p-10 rounded-[3rem] text-white space-y-6 relative overflow-hidden group">
-          <h3 className="text-xl font-bold tracking-tight flex items-center gap-2">
-            <Settings size={20} className="text-slate-400" /> Local Controls
-          </h3>
-          <div className="space-y-3">
-            <button
-              onClick={() => {
-                const current = localStorage.getItem('zengauge_ai_provider');
-                const next = current === 'ollama' ? 'gemini' : 'ollama';
-                localStorage.setItem('zengauge_ai_provider', next);
-                alert(`AI Provider switched to ${next.toUpperCase()}. Reloading...`);
-                window.location.reload();
-              }}
-              className="w-full flex items-center justify-between p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl hover:bg-indigo-500/20 transition-all group/btn"
-            >
-              <span className="text-sm font-bold text-indigo-300">
-                AI Provider: {localStorage.getItem('zengauge_ai_provider')?.toUpperCase() || 'GEMINI'}
-              </span>
-              <Settings size={16} className="text-indigo-300" />
-            </button>
-            <button
-              onClick={handleTrainModel}
-              disabled={isTraining}
-              className="w-full flex items-center justify-between p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl hover:bg-emerald-500/20 transition-all group/btn disabled:opacity-50"
-            >
-              <span className="text-sm font-bold text-emerald-400">
-                {isTraining ? 'Training…' : 'Train stress model'}
-              </span>
-              {isTraining ? <Loader2 size={16} className="text-emerald-400 animate-spin" /> : <BrainCircuit size={16} className="text-emerald-400" />}
-            </button>
-            {trainMessage && (
-              <p className="text-xs text-slate-400 mt-1 px-1">{trainMessage}</p>
-            )}
-            <button
-              onClick={() => { if (confirm('Wipe all local data?')) { localStorage.clear(); window.location.reload(); } }}
-              className="w-full flex items-center justify-between p-4 bg-red-500/10 border border-red-500/20 rounded-2xl hover:bg-red-500/20 transition-all group/btn"
-            >
-              <span className="text-sm font-bold text-red-400">Delete My Records</span>
-              <LogOut size={16} className="text-red-400" />
-            </button>
-          </div>
-          <div className="pt-6">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-2">Privacy & Storage</p>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Your profile and history are strictly local. Data is only sent to the Gemini thinking engine during live analysis to provide personalized insights.
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );

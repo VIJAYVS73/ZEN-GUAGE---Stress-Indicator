@@ -35,14 +35,194 @@ const ResultsView: React.FC<Props> = ({ data, results, onRestart }) => {
   const chartData = [{ value: data.stressLevel, fill: data.stressLevel > 70 ? '#ef4444' : data.stressLevel > 40 ? '#f59e0b' : '#10b981' }];
 
   const smartInsights = useMemo(() => {
-    const insights = [];
-    if (results.reactionTime && results.reactionTime < 230) insights.push("Reflexes are exceptional.");
-    else if (results.reactionTime && results.reactionTime > 300) insights.push("Reaction latency suggests high mental load.");
-    if (results.reactionTime && results.reactionTime < 240 && results.accuracy && results.accuracy < 80) {
-      insights.push("Moving fast but losing precision—classic hyper-arousal.");
+    const insights: string[] = [];
+
+    const seedFrom = JSON.stringify({
+      r: results.reactionTime,
+      a: results.accuracy,
+      m: results.memory,
+      t: results.tapping,
+      s: data.stressLevel
+    });
+    const seed = seedFrom.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const pick = (list: string[], count: number) => {
+      const picked: string[] = [];
+      for (let i = 0; i < count && list.length > 0; i++) {
+        const idx = (seed + i * 7) % list.length;
+        picked.push(list[idx]);
+        list.splice(idx, 1);
+      }
+      return picked;
+    };
+
+    // Reaction insights
+    if (results.reactionTime) {
+      if (results.reactionTime < 230) {
+        insights.push(...pick([
+          "Reflexes are exceptional—your alertness is high.",
+          "Lightning-fast reaction time suggests strong focus.",
+          "Quick responses indicate high cognitive readiness."
+        ], 1));
+      } else if (results.reactionTime > 300) {
+        insights.push(...pick([
+          "Reaction latency suggests elevated mental load.",
+          "Slower responses can reflect fatigue or distraction.",
+          "Your reaction pace is subdued—possible cognitive strain."
+        ], 1));
+      } else {
+        insights.push(...pick([
+          "Reaction speed is steady and within a healthy range.",
+          "Your reflexes are consistent—good baseline focus.",
+          "Balanced reaction time indicates stable alertness."
+        ], 1));
+      }
     }
-    return insights;
-  }, [results]);
+
+    // Accuracy insights
+    if (results.accuracy) {
+      if (results.accuracy >= 90) {
+        insights.push(...pick([
+          "Precision is excellent—errors are minimal.",
+          "High accuracy suggests careful, controlled focus.",
+          "Your aim is sharp—attention is well regulated."
+        ], 1));
+      } else if (results.accuracy < 70) {
+        insights.push(...pick([
+          "Accuracy dipped—possible haste or divided attention.",
+          "Lower precision suggests attention may be fragmented.",
+          "Misses are elevated—consider slowing your pace."
+        ], 1));
+      } else {
+        insights.push(...pick([
+          "Accuracy is solid with room to sharpen focus.",
+          "Precision is stable—small improvements could help.",
+          "Your accuracy is steady—attention is fairly consistent."
+        ], 1));
+      }
+    }
+
+    // Memory insights
+    if (results.memory !== undefined && results.memory !== null) {
+      if (results.memory >= 80) {
+        insights.push(...pick([
+          "Memory performance is strong—pattern recall is sharp.",
+          "Great memory retention suggests good working memory.",
+          "Your recall is excellent—mental tracking is solid."
+        ], 1));
+      } else if (results.memory < 60) {
+        insights.push(...pick([
+          "Memory recall is lower—working memory may be taxed.",
+          "Pattern retention dropped—mental fatigue possible.",
+          "Short-term recall looks strained—try a reset break."
+        ], 1));
+      }
+    }
+
+    // Tapping insights
+    if (results.tapping) {
+      if (results.tapping >= 7) {
+        insights.push(...pick([
+          "Motor speed is high—strong sustained focus.",
+          "Fast tapping suggests good stamina and energy.",
+          "Your pace is strong—focus endurance is solid."
+        ], 1));
+      } else if (results.tapping < 4.5) {
+        insights.push(...pick([
+          "Tap rate is low—possible mental or physical fatigue.",
+          "Lower tapping speed can signal reduced endurance.",
+          "Pace slowed—consider a short movement break."
+        ], 1));
+      }
+    }
+
+    // Cross-metric insight
+    if (results.reactionTime && results.accuracy) {
+      if (results.reactionTime < 240 && results.accuracy < 80) {
+        insights.push(...pick([
+          "Speed is high but precision dipped—signs of overdrive.",
+          "Fast responses with lower accuracy suggest hyper-arousal.",
+          "Quick reactions but more misses—slow slightly for balance."
+        ], 1));
+      }
+    }
+
+    return insights.slice(0, 3);
+  }, [results, data.stressLevel]);
+
+  const recoverySuggestions = useMemo(() => {
+    if (data.suggestions && data.suggestions.length > 0) return data.suggestions;
+
+    const suggestionPools = {
+      breathing: [
+        { title: '4-7-8 Breathing', description: 'Inhale 4s, hold 7s, exhale 8s for 4 cycles.', duration: '4 min', intensity: 'high' },
+        { title: 'Box Breathing', description: 'Inhale 4s, hold 4s, exhale 4s, hold 4s.', duration: '3 min', intensity: 'medium' },
+        { title: 'Triangle Breathing', description: 'Inhale 3s, hold 3s, exhale 3s. Repeat 5 times.', duration: '2 min', intensity: 'low' },
+        { title: 'Belly Breathing', description: 'Deep diaphragmatic breaths, hand on belly.', duration: '3 min', intensity: 'medium' },
+        { title: 'Alternate Nostril', description: 'Close right nostril, inhale left. Switch sides.', duration: '4 min', intensity: 'high' },
+        { title: 'Calm Maintenance', description: 'Slow breaths for 60 seconds to keep balance.', duration: '1 min', intensity: 'low' }
+      ],
+      physical: [
+        { title: 'Body Reset Walk', description: 'Take a 10-minute walk without your phone.', duration: '10 min', intensity: 'high' },
+        { title: 'Desk Yoga Flow', description: 'Seated spinal twist, forward fold, neck circles.', duration: '5 min', intensity: 'medium' },
+        { title: 'Progressive Relaxation', description: 'Tense and release each muscle group slowly.', duration: '8 min', intensity: 'high' },
+        { title: 'Posture Reset', description: 'Roll shoulders back, unclench jaw, relax hands.', duration: '2 min', intensity: 'low' },
+        { title: 'Mini Stretch', description: 'Neck rolls, shoulder stretch, wrist release.', duration: '2 min', intensity: 'low' },
+        { title: 'Eye Rest Exercise', description: '20-20-20 rule: Look 20ft away for 20s every 20min.', duration: '1 min', intensity: 'low' }
+      ],
+      mental: [
+        { title: '3-2-1 Grounding', description: 'Name 3 things you see, 2 you feel, 1 you hear.', duration: '3 min', intensity: 'high' },
+        { title: 'Focus Sprint', description: 'Pick one task and do 10 minutes distraction-free.', duration: '10 min', intensity: 'medium' },
+        { title: 'Digital Detox', description: 'Put phone in another room for 15 minutes.', duration: '15 min', intensity: 'high' },
+        { title: 'Thought Journaling', description: 'Write down racing thoughts to clear your mind.', duration: '5 min', intensity: 'medium' },
+        { title: 'Gratitude Note', description: 'Write one thing that went well today.', duration: '2 min', intensity: 'low' },
+        { title: 'Power Nap', description: 'Close eyes, deep breaths, 10-minute timer.', duration: '10 min', intensity: 'medium' }
+      ]
+    };
+
+    // Determine intensity based on stress level and game performance
+    const level = data.stressLevel;
+    const slowReaction = results.reactionTime && results.reactionTime > 300;
+    const lowAccuracy = results.accuracy && results.accuracy < 70;
+    const lowMemory = results.memory && results.memory < 60;
+    
+    let targetIntensity = level > 70 ? 'high' : level > 40 ? 'medium' : 'low';
+    
+    // Adjust based on specific issues
+    const needsBreathing = slowReaction || level > 60;
+    const needsPhysical = results.tapping && results.tapping < 40;
+    const needsMental = lowAccuracy || lowMemory;
+
+    // Select suggestions with variety
+    const suggestions = [];
+    
+    // Always include a breathing exercise
+    const breathingOptions = suggestionPools.breathing.filter(s => 
+      s.intensity === targetIntensity || (targetIntensity === 'high' && s.intensity === 'medium')
+    );
+    suggestions.push(breathingOptions[Math.floor(Math.random() * breathingOptions.length)]);
+    
+    // Add physical based on need
+    if (needsPhysical) {
+      const physicalOptions = suggestionPools.physical.filter(s => s.intensity === targetIntensity);
+      suggestions.push(physicalOptions[Math.floor(Math.random() * physicalOptions.length)]);
+    } else {
+      const physicalOptions = suggestionPools.physical;
+      suggestions.push(physicalOptions[Math.floor(Math.random() * physicalOptions.length)]);
+    }
+    
+    // Add mental based on need
+    if (needsMental) {
+      const mentalOptions = suggestionPools.mental.filter(s => 
+        s.intensity === 'medium' || s.intensity === 'high'
+      );
+      suggestions.push(mentalOptions[Math.floor(Math.random() * mentalOptions.length)]);
+    } else {
+      const mentalOptions = suggestionPools.mental;
+      suggestions.push(mentalOptions[Math.floor(Math.random() * mentalOptions.length)]);
+    }
+    
+    return suggestions.map(({ intensity, ...rest }) => rest);
+  }, [data.suggestions, data.stressLevel, results]);
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -100,7 +280,7 @@ const ResultsView: React.FC<Props> = ({ data, results, onRestart }) => {
         <div className="bg-white rounded-[2.5rem] border border-slate-100 p-8 shadow-sm space-y-6">
           <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><TrendingUp size={20} className="text-emerald-500" /> Recovery Roadmap</h3>
           <div className="space-y-4">
-            {data.suggestions.map((s, i) => (
+            {recoverySuggestions.map((s, i) => (
               <div key={i} className="flex flex-col gap-1 p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2 text-indigo-600">
