@@ -69,6 +69,7 @@ const App: React.FC = () => {
   const [coords, setCoords] = useState<{ latitude: number, longitude: number } | undefined>();
   const [history, setHistory] = useState<AssessmentHistoryItem[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [affirmation, setAffirmation] = useState<string>("Take a deep breath. You're doing great.");
   const [language, setLanguage] = useState<SupportedLanguage>(() => loadLanguage());
   const [difficulty, setDifficulty] = useState<GameDifficulty>(() => {
@@ -157,6 +158,19 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(DIFFICULTY_KEY, difficulty);
   }, [difficulty]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const profileMenu = (event.target as HTMLElement).closest('[data-profile-menu]');
+      if (!profileMenu) {
+        setIsProfileMenuOpen(false);
+      }
+    };
+    if (isProfileMenuOpen) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [isProfileMenuOpen]);
 
   const updateProfile = (stressLevel: number, accuracy: number) => {
     const today = new Date().toDateString();
@@ -570,30 +584,46 @@ const App: React.FC = () => {
             <button className="p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
               <Bell size={20} />
             </button>
-            <button
-              onClick={() => {
-                setActiveView(AppView.PROFILE);
-                setAppState(AppState.WELCOME);
-              }}
-              className={`flex items-center gap-3 p-1.5 pr-4 rounded-full border transition-all ${activeView === AppView.PROFILE
-                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100'
-                : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-500'
-                }`}
-            >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activeView === AppView.PROFILE ? 'bg-white/20' : 'bg-slate-100 text-indigo-600'}`}>
-                <User size={18} />
-              </div>
-              <span className="text-sm font-bold truncate max-w-[100px]">
-                {profile.displayName || 'Zen User'}
-              </span>
-            </button>
-            <button
-              onClick={handleLogout}
-              className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all group"
-              title="Logout"
-            >
-              <LogOut size={20} className="group-hover:scale-110 transition-transform" />
-            </button>
+            <div className="relative" data-profile-menu>
+              <button
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className={`flex items-center gap-3 p-1.5 pr-4 rounded-full border transition-all ${activeView === AppView.PROFILE || isProfileMenuOpen
+                  ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100'
+                  : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-500'
+                  }`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${activeView === AppView.PROFILE || isProfileMenuOpen ? 'bg-white/20' : 'bg-slate-100 text-indigo-600'}`}>
+                  <User size={18} />
+                </div>
+                <span className="text-sm font-bold truncate max-w-[100px]">
+                  {profile.displayName || 'Zen User'}
+                </span>
+              </button>
+              
+              {/* Dropdown Menu */}
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50">
+                  <button
+                    onClick={() => {
+                      setActiveView(AppView.PROFILE);
+                      setAppState(AppState.WELCOME);
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all border-b border-slate-100"
+                  >
+                    <User size={16} className="text-indigo-600" />
+                    View Profile
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 transition-all"
+                  >
+                    <LogOut size={16} />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
